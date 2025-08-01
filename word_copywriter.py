@@ -38,7 +38,7 @@ def read_data_from_docx(path):
         t = doc.tables[0]
         try:
             data["Адрес загрузки"] = t.cell(8, 0).text.strip()
-            data["Адрес разгрузки"] = t.cell(8, 1).text.strip()
+            data["Адрес разгрузки"] = t.cell(8, 2).text.strip()
             data["Дата погрузки"] = t.cell(10, 0).text.strip()
             data["Дата разгрузки"] = t.cell(10, 2).text.strip()
             data["Стоимость перевозки"] = t.cell(11, 1).text.strip()
@@ -64,7 +64,7 @@ def read_data_from_docx(path):
             cell_text = ""
         if cell_text:
             start = cell_text.find("Заказчик:")
-            end = cell_text.find("Потовый адрес")
+            end = cell_text.find("Почтовый адрес")
             if start != -1 and end != -1 and end > start:
                 data["Данные заказчика"] = cell_text[start + len("Заказчик:"):end].strip()
             inn_match = re.search(r"ИНН получателя \d+", cell_text)
