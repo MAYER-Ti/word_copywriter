@@ -2,18 +2,78 @@ import sys
 from PyQt5 import QtWidgets
 from PyQt5.QtWidgets import QFileDialog, QMessageBox
 from docx import Document
+import re
 
 
 def read_data_from_docx(path):
-    """Read key:value pairs from a docx document."""
+    """Parse contract-like document and return values for placeholders."""
     doc = Document(path)
-    data = {}
+
+    data = {
+        "Данные заказчика": "",
+        "ИНН получателя": "",
+        "ОГРН получателя": "",
+        "Номер документа": "",
+        "Адрес загрузки": "",
+        "Адрес разгрузки": "",
+        "Марка автомобиля": "",
+        "Номер полуприцепа": "",
+        "ФИО водителя": "",
+        "Дата погрузки": "",
+        "Дата разгрузки": "",
+        "Стоимость перевозки": "",
+    }
+
+    # First paragraph with number
     for para in doc.paragraphs:
         text = para.text.strip()
-        if ':' in text:
-            key, value = text.split(':', 1)
-            key = key.strip().strip('{}')
-            data[key] = value.strip()
+        if text.startswith("Договор-заявка на перевозку груза") and text.endswith("года."):
+            num_start = text.find("№")
+            if num_start != -1:
+                data["Номер документа"] = text[num_start:].strip()
+            break
+
+    # First table with route and cost info
+    if doc.tables:
+        t = doc.tables[0]
+        try:
+            data["Адрес загрузки"] = t.cell(8, 0).text.strip()
+            data["Адрес разгрузки"] = t.cell(8, 1).text.strip()
+            data["Дата погрузки"] = t.cell(10, 0).text.strip()
+            data["Дата разгрузки"] = t.cell(10, 2).text.strip()
+            data["Стоимость перевозки"] = t.cell(11, 1).text.strip()
+        except IndexError:
+            pass
+
+    # Second table with vehicle info
+    if len(doc.tables) > 1:
+        t = doc.tables[1]
+        try:
+            data["Марка автомобиля"] = t.cell(0, 1).text.strip()
+            data["Номер полуприцепа"] = t.cell(0, 2).text.strip()
+            data["ФИО водителя"] = t.cell(1, 1).text.strip()
+        except IndexError:
+            pass
+
+    # Third table with customer info
+    if len(doc.tables) > 2:
+        t = doc.tables[2]
+        try:
+            cell_text = t.cell(0, 1).text
+        except IndexError:
+            cell_text = ""
+        if cell_text:
+            start = cell_text.find("Заказчик:")
+            end = cell_text.find("Потовый адрес")
+            if start != -1 and end != -1 and end > start:
+                data["Данные заказчика"] = cell_text[start + len("Заказчик:"):end].strip()
+            inn_match = re.search(r"ИНН получателя \d+", cell_text)
+            if inn_match:
+                data["ИНН получателя"] = inn_match.group(0).strip()
+            ogrn_match = re.search(r"ОГРН \d+", cell_text)
+            if ogrn_match:
+                data["ОГРН получателя"] = ogrn_match.group(0).strip()
+
     return data
 
 
@@ -31,9 +91,27 @@ def replace_placeholders(doc, data):
                 replace_placeholders(cell, data)
 
 
+def format_preview(data):
+    """Return formatted string for preview widget."""
+    lines = [
+        data.get("Данные заказчика", ""),
+        data.get("ИНН получателя", ""),
+        data.get("ОГРН получателя", ""),
+        f"Транспортные услуги по договору-заявке № {data.get('Номер документа', '')}",
+        f"По маршруту {data.get('Адрес загрузки', '')} - {data.get('Адрес разгрузки', '')}",
+        f"Автомобиль: {data.get('Марка автомобиля', '')} {data.get('Номер полуприцепа', '')}",
+        f"Водитель: {data.get('ФИО водителя', '')}",
+        f"Дата погрузки: {data.get('Дата погрузки', '')}",
+        f"Дата разгрузки: {data.get('Дата разгрузки', '')}",
+        f"Стоимость перевозки: {data.get('Стоимость перевозки', '')}",
+    ]
+    return "\n".join(lines)
+
+
 class MainWindow(QtWidgets.QWidget):
     def __init__(self):
         super().__init__()
+        self.data = {}
         self.init_ui()
 
     def init_ui(self):
@@ -48,6 +126,9 @@ class MainWindow(QtWidgets.QWidget):
         layout.addWidget(QtWidgets.QLabel("Source"), 0, 0)
         layout.addWidget(self.source_edit, 1, 0)
         layout.addWidget(source_btn, 2, 0)
+        self.preview_edit = QtWidgets.QTextEdit()
+        self.preview_edit.setReadOnly(True)
+        layout.addWidget(self.preview_edit, 3, 0)
 
         # Template document
         self.template_edit = QtWidgets.QLineEdit()
@@ -70,6 +151,8 @@ class MainWindow(QtWidgets.QWidget):
         path, _ = QFileDialog.getOpenFileName(self, "Select source", filter="Word Documents (*.docx)")
         if path:
             self.source_edit.setText(path)
+            self.data = read_data_from_docx(path)
+            self.preview_edit.setPlainText(format_preview(self.data))
         self.update_save_button_state()
 
     def browse_template(self):
@@ -89,7 +172,9 @@ class MainWindow(QtWidgets.QWidget):
             return
         if not output_path.lower().endswith('.docx'):
             output_path += '.docx'
-        data = read_data_from_docx(source_path)
+        data = getattr(self, 'data', None)
+        if not data:
+            data = read_data_from_docx(source_path)
         doc = Document(template_path)
         replace_placeholders(doc, data)
         doc.save(output_path)
