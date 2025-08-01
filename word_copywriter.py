@@ -177,7 +177,18 @@ class MainWindow(QtWidgets.QWidget):
             data = read_data_from_docx(source_path)
         doc = Document(template_path)
         replace_placeholders(doc, data)
-        doc.save(output_path)
+        try:
+            doc.save(output_path)
+        except PermissionError:
+            QMessageBox.critical(
+                self,
+                "Error",
+                "Cannot save file. It may be open in another program."
+            )
+            return
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to save file: {e}")
+            return
 
     def update_save_button_state(self):
         if self.source_edit.text() and self.template_edit.text():
