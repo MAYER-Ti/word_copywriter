@@ -178,7 +178,6 @@ class MainWindow(QtWidgets.QWidget):
         doc = Document(template_path)
         replace_placeholders(doc, data)
         doc.save(output_path)
-        QMessageBox.information(self, "Success", f"Document saved to {output_path}")
 
     def update_save_button_state(self):
         if self.source_edit.text() and self.template_edit.text():
