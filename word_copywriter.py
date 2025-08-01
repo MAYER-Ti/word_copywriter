@@ -179,6 +179,7 @@ class MainWindow(QtWidgets.QWidget):
         replace_placeholders(doc, data)
         try:
             doc.save(output_path)
+            QMessageBox.information(self, "Success", f"Document saved to {output_path}")
         except PermissionError:
             QMessageBox.critical(
                 self,
