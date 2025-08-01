@@ -38,10 +38,10 @@ def read_data_from_docx(path):
         t = doc.tables[0]
         try:
             data["Адрес загрузки"] = t.cell(8, 0).text.strip()
-            data["Адрес разгрузки"] = t.cell(8, 2).text.strip()
+            data["Адрес разгрузки"] = t.cell(8, 4).text.strip()
             data["Дата погрузки"] = t.cell(10, 0).text.strip()
-            data["Дата разгрузки"] = t.cell(10, 2).text.strip()
-            data["Стоимость перевозки"] = t.cell(11, 1).text.strip()
+            data["Дата разгрузки"] = t.cell(10, 4).text.strip()
+            data["Стоимость перевозки"] = t.cell(11, 4).text.strip()
         except IndexError:
             pass
 
