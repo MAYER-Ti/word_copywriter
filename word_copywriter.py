@@ -158,8 +158,8 @@ def parse_data_from_text(text: str):
         data["ИНН получателя"] = inn_match.group(1).strip()
 
     ogrn_match = re.search(r"(ОГРН\s*\d+)", text)
-    if ogrн_match:
-        data["ОГРН получателя"] = ogrн_match.group(1).strip()
+    if ogrn_match:
+        data["ОГРН получателя"] = ogrn_match.group(1).strip()
 
     return data
 
