@@ -119,39 +119,57 @@ def parse_data_from_text(text: str):
         elif line.startswith("Стоимость перевозки"):
             vals = split_cols(line)
             if len(vals) > 1:
-                data["Стоимость перевозки"] = vals[1]
+                data["Стоимость перевозки"] = " ".join(vals[1:])
         elif line.startswith("Марка") and "полуприцеп" in line:
             vals = split_cols(line)
             if len(vals) > 1:
                 data["Марка автомобиля"] = vals[1]
             if len(vals) > 2:
                 data["Номер полуприцепа"] = vals[2]
-        elif line.startswith("ФИО водителя") or line.startswith("Водитель"):
+        elif line.startswith("ФИО водителя"):
             vals = split_cols(line)
             if len(vals) > 1:
                 data["ФИО водителя"] = vals[1]
 
     # Fallback regex-based extraction if table parsing failed
+    if not (data["Адрес загрузки"] and data["Адрес разгрузки"]):
+        addr_match = re.search(r"Адрес загрузки[^\n]*\n([^\t\n\r]+)\t([^\n\r]+)", text)
+        if addr_match:
+            data["Адрес загрузки"], data["Адрес разгрузки"] = addr_match.group(1).strip(), addr_match.group(2).strip()
     if not data["Адрес загрузки"]:
-        data["Адрес загрузки"] = find(r"Адрес загрузки[:\s]*([^\n\r]+)")
+        data["Адрес загрузки"] = find(r"(?m)^Адрес загрузки[:\s]+([^\n\r]+)")
     if not data["Адрес разгрузки"]:
-        data["Адрес разгрузки"] = find(r"Адрес разгрузки[:\s]*([^\n\r]+)")
+        data["Адрес разгрузки"] = find(r"(?m)^Адрес разгрузки[:\s]+([^\n\r]+)")
+    if not (data["Дата погрузки"] and data["Дата разгрузки"]):
+        date_match = re.search(r"Дата[^\n]*\n([^\t\n\r]+)\t[^\n\r]*\t([^\t\n\r]+)", text)
+        if date_match:
+            data["Дата погрузки"], data["Дата разгрузки"] = date_match.group(1).strip(), date_match.group(2).strip()
     if not data["Дата погрузки"]:
-        data["Дата погрузки"] = find(r"Дата погрузки[:\s]*([^\n\r]+)")
+        data["Дата погрузки"] = find(r"(?m)^Дата погрузки[:\s]+([^\n\r]+)")
     if not data["Дата разгрузки"]:
-        data["Дата разгрузки"] = find(r"Дата разгрузки[:\s]*([^\n\r]+)")
+        data["Дата разгрузки"] = find(r"(?m)^Дата разгрузки[:\s]+([^\n\r]+)")
     if not data["Стоимость перевозки"]:
-        data["Стоимость перевозки"] = find(r"Стоимость перевозки[:\s]*([^\n\r]+)")
+        cost_match = re.search(r"Стоимость перевозки[^\n]*\t([^\n\r]+)", text)
+        if cost_match:
+            data["Стоимость перевозки"] = cost_match.group(1).strip()
+        else:
+            data["Стоимость перевозки"] = find(r"Стоимость перевозки[:\s]*([^\n\r]+)")
+    if not (data["Марка автомобиля"] and data["Номер полуприцепа"]):
+        car_match = re.search(r"Марка[,\s]+номер а/м, номер полуприцепа\s+([^\s\n]+)\s+([^\s\n]+)", text, re.I)
+        if car_match:
+            data["Марка автомобиля"], data["Номер полуприцепа"] = car_match.group(1).strip(), car_match.group(2).strip()
     if not data["Марка автомобиля"]:
-        data["Марка автомобиля"] = find(r"Марка автомобиля[:\s]*([^\n\r]+)")
+        data["Марка автомобиля"] = find(r"(?m)^Марка автомобиля[:\s]+([^\n\r]+)")
     if not data["Номер полуприцепа"]:
-        data["Номер полуприцепа"] = find(r"Номер полуприцепа[:\s]*([^\n\r]+)")
+        data["Номер полуприцепа"] = find(r"(?m)^Номер полуприцепа[:\s]+([^\n\r]+)")
     if not data["ФИО водителя"]:
-        data["ФИО водителя"] = find(r"(?:ФИО водителя|Водитель)[:\s]*([^\n\r]+)")
+        data["ФИО водителя"] = find(r"(?m)^ФИО водителя[:\s]*([^\n\r]+)")
 
-    cust_match = re.search(r"Заказчик:(.*?)(?:Почтовый адрес|$)", text, re.S)
-    if cust_match:
-        data["Данные заказчика"] = cust_match.group(1).strip()
+    cust_matches = re.findall(r"Заказчик:(.*?)(?:Почтовый адрес|$)", text, re.S)
+    if not cust_matches:
+        cust_matches = re.findall(r"Заказчик\s+(.*?)(?:Почтовый адрес|$)", text, re.S)
+    if cust_matches:
+        data["Данные заказчика"] = cust_matches[-1].strip()
 
     inn_match = re.search(r"(ИНН получателя\s*\d+)", text)
     if inn_match:
