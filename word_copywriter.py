@@ -3,26 +3,32 @@ from PyQt5 import QtWidgets
 from PyQt5.QtWidgets import QFileDialog, QMessageBox
 from docx import Document
 import re
+import pdfplumber
+from pdf2image import convert_from_path
+import pytesseract
+
+
+DEFAULT_DATA = {
+    "Данные заказчика": "",
+    "ИНН получателя": "",
+    "ОГРН получателя": "",
+    "Номер документа": "",
+    "Адрес загрузки": "",
+    "Адрес разгрузки": "",
+    "Марка автомобиля": "",
+    "Номер полуприцепа": "",
+    "ФИО водителя": "",
+    "Дата погрузки": "",
+    "Дата разгрузки": "",
+    "Стоимость перевозки": "",
+}
 
 
 def read_data_from_docx(path):
     """Parse contract-like document and return values for placeholders."""
     doc = Document(path)
 
-    data = {
-        "Данные заказчика": "",
-        "ИНН получателя": "",
-        "ОГРН получателя": "",
-        "Номер документа": "",
-        "Адрес загрузки": "",
-        "Адрес разгрузки": "",
-        "Марка автомобиля": "",
-        "Номер полуприцепа": "",
-        "ФИО водителя": "",
-        "Дата погрузки": "",
-        "Дата разгрузки": "",
-        "Стоимость перевозки": "",
-    }
+    data = DEFAULT_DATA.copy()
 
     # First paragraph with number
     for para in doc.paragraphs:
@@ -75,6 +81,119 @@ def read_data_from_docx(path):
                 data["ОГРН получателя"] = ogrn_match.group(0).strip()
 
     return data
+
+
+
+def parse_data_from_text(text: str):
+    """Parse plain text of contract-like document and return values."""
+    data = DEFAULT_DATA.copy()
+
+    # Split text into non-empty lines for easier table-like parsing
+    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+
+    def split_cols(line: str):
+        """Split a line into columns by tabs or 2+ spaces."""
+        return [p.strip() for p in re.split(r"\t+|\s{2,}", line) if p.strip()]
+
+    def find(pattern, flags=0):
+        match = re.search(pattern, text, flags)
+        return match.group(1).strip() if match else ""
+
+    # Document number can appear anywhere
+    num_match = re.search(r"Договор-заявка.*?(№\s*[^\n\r]+)", text)
+    if num_match:
+        data["Номер документа"] = num_match.group(1).strip()
+
+    for i, line in enumerate(lines):
+        cols = split_cols(line)
+        if cols[:2] == ["Адрес загрузки", "Адрес разгрузки"] and i + 1 < len(lines):
+            vals = split_cols(lines[i + 1])
+            if len(vals) >= 2:
+                data["Адрес загрузки"] = vals[0]
+                data["Адрес разгрузки"] = vals[1]
+        elif cols[:4] == ["Дата", "Время", "Дата", "Время"] and i + 1 < len(lines):
+            vals = split_cols(lines[i + 1])
+            if len(vals) >= 3:
+                data["Дата погрузки"] = vals[0]
+                data["Дата разгрузки"] = vals[2]
+        elif line.startswith("Стоимость перевозки"):
+            vals = split_cols(line)
+            if len(vals) > 1:
+                data["Стоимость перевозки"] = vals[1]
+        elif line.startswith("Марка") and "полуприцеп" in line:
+            vals = split_cols(line)
+            if len(vals) > 1:
+                data["Марка автомобиля"] = vals[1]
+            if len(vals) > 2:
+                data["Номер полуприцепа"] = vals[2]
+        elif line.startswith("ФИО водителя") or line.startswith("Водитель"):
+            vals = split_cols(line)
+            if len(vals) > 1:
+                data["ФИО водителя"] = vals[1]
+
+    # Fallback regex-based extraction if table parsing failed
+    if not data["Адрес загрузки"]:
+        data["Адрес загрузки"] = find(r"Адрес загрузки[:\s]*([^\n\r]+)")
+    if not data["Адрес разгрузки"]:
+        data["Адрес разгрузки"] = find(r"Адрес разгрузки[:\s]*([^\n\r]+)")
+    if not data["Дата погрузки"]:
+        data["Дата погрузки"] = find(r"Дата погрузки[:\s]*([^\n\r]+)")
+    if not data["Дата разгрузки"]:
+        data["Дата разгрузки"] = find(r"Дата разгрузки[:\s]*([^\n\r]+)")
+    if not data["Стоимость перевозки"]:
+        data["Стоимость перевозки"] = find(r"Стоимость перевозки[:\s]*([^\n\r]+)")
+    if not data["Марка автомобиля"]:
+        data["Марка автомобиля"] = find(r"Марка автомобиля[:\s]*([^\n\r]+)")
+    if not data["Номер полуприцепа"]:
+        data["Номер полуприцепа"] = find(r"Номер полуприцепа[:\s]*([^\n\r]+)")
+    if not data["ФИО водителя"]:
+        data["ФИО водителя"] = find(r"(?:ФИО водителя|Водитель)[:\s]*([^\n\r]+)")
+
+    cust_match = re.search(r"Заказчик:(.*?)(?:Почтовый адрес|$)", text, re.S)
+    if cust_match:
+        data["Данные заказчика"] = cust_match.group(1).strip()
+
+    inn_match = re.search(r"(ИНН получателя\s*\d+)", text)
+    if inn_match:
+        data["ИНН получателя"] = inn_match.group(1).strip()
+
+    ogrn_match = re.search(r"(ОГРН\s*\d+)", text)
+    if ogrн_match:
+        data["ОГРН получателя"] = ogrн_match.group(1).strip()
+
+    return data
+
+
+
+def extract_text_from_pdf(path: str) -> str:
+    """Extract text from PDF, using OCR for scanned documents."""
+    text = ""
+    with pdfplumber.open(path) as pdf:
+        for page in pdf.pages:
+            page_text = page.extract_text() or ""
+            if page_text:
+                text += page_text + "\n"
+    if text.strip():
+        return text
+
+    # Fallback to OCR for scanned PDFs
+    images = convert_from_path(path)
+    for img in images:
+        text += pytesseract.image_to_string(img, lang="rus") + "\n"
+    return text
+
+
+def read_data_from_pdf(path: str):
+    text = extract_text_from_pdf(path)
+    return parse_data_from_text(text)
+
+
+def read_data_from_file(path: str):
+    if path.lower().endswith(".docx"):
+        return read_data_from_docx(path)
+    if path.lower().endswith(".pdf"):
+        return read_data_from_pdf(path)
+    raise ValueError("Unsupported file format")
 
 
 def replace_placeholders(doc, data):
@@ -148,10 +267,12 @@ class MainWindow(QtWidgets.QWidget):
         self.setLayout(layout)
 
     def browse_source(self):
-        path, _ = QFileDialog.getOpenFileName(self, "Select source", filter="Word Documents (*.docx)")
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Select source", filter="Documents (*.docx *.pdf)"
+        )
         if path:
             self.source_edit.setText(path)
-            self.data = read_data_from_docx(path)
+            self.data = read_data_from_file(path)
             self.preview_edit.setPlainText(format_preview(self.data))
         self.update_save_button_state()
 
@@ -174,7 +295,7 @@ class MainWindow(QtWidgets.QWidget):
             output_path += '.docx'
         data = getattr(self, 'data', None)
         if not data:
-            data = read_data_from_docx(source_path)
+            data = read_data_from_file(source_path)
         doc = Document(template_path)
         replace_placeholders(doc, data)
         try:

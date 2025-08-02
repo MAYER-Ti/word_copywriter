@@ -11,7 +11,7 @@ pip install -r requirements.txt
 python word_copywriter.py
 ```
 
-1. Select the source document containing key-value pairs (lines formatted as `Key: Value`).
+1. Select the source document containing key-value pairs (lines formatted as `Key: Value`). PDF files are supported, including scanned documents (requires `tesseract` and `poppler` installed).
 2. Select the template document with placeholders like `{{Key}}`.
 3. After selecting source and template, press **Save** and choose where to store the resulting document.
 
