@@ -27,7 +27,7 @@ def read_data_from_docx(path):
     # First paragraph with number
     for para in doc.paragraphs:
         text = para.text.strip()
-        if text.startswith("Договор-заявка на перевозку груза") and text.endswith("года."):
+        if text.startswith("Договор-заявка"):# and text.endswith("года ."):
             num_start = text.find("№")
             if num_start != -1:
                 data["Номер документа"] = text[num_start:].strip()
@@ -97,7 +97,7 @@ def format_preview(data):
         data.get("Данные заказчика", ""),
         data.get("ИНН получателя", ""),
         data.get("ОГРН получателя", ""),
-        f"Транспортные услуги по договору-заявке № {data.get('Номер документа', '')}",
+        f"Транспортные услуги по договору-заявке {data.get('Номер документа', '')}",
         f"По маршруту {data.get('Адрес загрузки', '')} - {data.get('Адрес разгрузки', '')}",
         f"Автомобиль: {data.get('Марка автомобиля', '')} {data.get('Номер полуприцепа', '')}",
         f"Водитель: {data.get('ФИО водителя', '')}",
