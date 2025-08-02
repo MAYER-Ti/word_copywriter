@@ -106,20 +106,33 @@ def parse_data_from_text(text: str):
 
     for i, line in enumerate(lines):
         cols = split_cols(line)
-        if cols[:2] == ["Адрес загрузки", "Адрес разгрузки"] and i + 1 < len(lines):
-            vals = split_cols(lines[i + 1])
-            if len(vals) >= 2:
-                data["Адрес загрузки"] = vals[0]
-                data["Адрес разгрузки"] = vals[1]
-        elif cols[:4] == ["Дата", "Время", "Дата", "Время"] and i + 1 < len(lines):
-            vals = split_cols(lines[i + 1])
+        if re.match(r"Адрес загрузки\s+Адрес разгрузки", line) and i + 1 < len(lines):
+            addr_line = lines[i + 1]
+            j = i + 2
+            while j < len(lines) and not lines[j].startswith("Дата"):
+                addr_line += " " + lines[j]
+                j += 1
+            split_match = re.search(r"\d\s+(?=[А-ЯЁ])", addr_line)
+            if split_match:
+                idx = split_match.end()
+                data["Адрес загрузки"] = addr_line[:idx].strip()
+                data["Адрес разгрузки"] = addr_line[idx:].strip()
+            else:
+                vals = split_cols(addr_line)
+                if len(vals) >= 2:
+                    data["Адрес загрузки"], data["Адрес разгрузки"] = vals[0], vals[1]
+        elif re.match(r"Дата\s+Время\s+Дата\s+Время", line) and i + 1 < len(lines):
+            vals_line = lines[i + 1]
+            if i + 2 < len(lines) and not lines[i + 2].startswith("Стоимость перевозки"):
+                vals_line += " " + lines[i + 2]
+            vals = split_cols(vals_line)
             if len(vals) >= 3:
                 data["Дата погрузки"] = vals[0]
                 data["Дата разгрузки"] = vals[2]
         elif line.startswith("Стоимость перевозки"):
-            vals = split_cols(line)
-            if len(vals) > 1:
-                data["Стоимость перевозки"] = " ".join(vals[1:])
+            cost_match = re.search(r"Стоимость перевозки(?:\s*\(прописью\))?\s*([^\n\r]+)", line)
+            if cost_match:
+                data["Стоимость перевозки"] = cost_match.group(1).strip()
         elif line.startswith("Марка") and "полуприцеп" in line:
             vals = split_cols(line)
             if len(vals) > 1:
@@ -133,7 +146,7 @@ def parse_data_from_text(text: str):
 
     # Fallback regex-based extraction if table parsing failed
     if not (data["Адрес загрузки"] and data["Адрес разгрузки"]):
-        addr_match = re.search(r"Адрес загрузки[^\n]*\n([^\t\n\r]+)\t([^\n\r]+)", text)
+        addr_match = re.search(r"Адрес загрузки[:\s]+([^\n\r]+)\s+Адрес разгрузки[:\s]+([^\n\r]+)", text)
         if addr_match:
             data["Адрес загрузки"], data["Адрес разгрузки"] = addr_match.group(1).strip(), addr_match.group(2).strip()
     if not data["Адрес загрузки"]:
@@ -141,19 +154,13 @@ def parse_data_from_text(text: str):
     if not data["Адрес разгрузки"]:
         data["Адрес разгрузки"] = find(r"(?m)^Адрес разгрузки[:\s]+([^\n\r]+)")
     if not (data["Дата погрузки"] and data["Дата разгрузки"]):
-        date_match = re.search(r"Дата[^\n]*\n([^\t\n\r]+)\t[^\n\r]*\t([^\t\n\r]+)", text)
-        if date_match:
-            data["Дата погрузки"], data["Дата разгрузки"] = date_match.group(1).strip(), date_match.group(2).strip()
-    if not data["Дата погрузки"]:
-        data["Дата погрузки"] = find(r"(?m)^Дата погрузки[:\s]+([^\n\r]+)")
-    if not data["Дата разгрузки"]:
-        data["Дата разгрузки"] = find(r"(?m)^Дата разгрузки[:\s]+([^\n\r]+)")
+        dates = re.findall(r"\d{2}\.\d{2}\.\d{4}", text)
+        if len(dates) >= 2:
+            data["Дата погрузки"], data["Дата разгрузки"] = dates[0], dates[1]
     if not data["Стоимость перевозки"]:
-        cost_match = re.search(r"Стоимость перевозки[^\n]*\t([^\n\r]+)", text)
+        cost_match = re.search(r"Стоимость перевозки(?:\s*\(прописью\))?\s*([^\n\r]+)", text)
         if cost_match:
             data["Стоимость перевозки"] = cost_match.group(1).strip()
-        else:
-            data["Стоимость перевозки"] = find(r"Стоимость перевозки[:\s]*([^\n\r]+)")
     if not (data["Марка автомобиля"] and data["Номер полуприцепа"]):
         car_match = re.search(r"Марка[,\s]+номер а/м, номер полуприцепа\s+([^\s\n]+)\s+([^\s\n]+)", text, re.I)
         if car_match:
@@ -169,7 +176,33 @@ def parse_data_from_text(text: str):
     if not cust_matches:
         cust_matches = re.findall(r"Заказчик\s+(.*?)(?:Почтовый адрес|$)", text, re.S)
     if cust_matches:
-        data["Данные заказчика"] = cust_matches[-1].strip()
+        block = cust_matches[-1]
+        lines_cust = [ln.strip() for ln in block.splitlines() if ln.strip()]
+        name = ""
+        address = ""
+        idxs = [i for i, ln in enumerate(lines_cust) if ln.startswith("Индивидуальный предприниматель")]
+        if idxs:
+            idx = idxs[-1]
+            after = lines_cust[idx][len("Индивидуальный предприниматель"):].strip()
+            if not after or after == "Индивидуальный предприниматель":
+                if idx + 1 < len(lines_cust):
+                    parts = lines_cust[idx + 1].split()
+                    if len(parts) >= 3:
+                        name = "Индивидуальный предприниматель " + " ".join(parts[-3:])
+            else:
+                name = "Индивидуальный предприниматель " + after
+        for j, ln in enumerate(lines_cust):
+            if ln.startswith("Юридический адрес"):
+                address = ln
+                for extra in lines_cust[j + 1:]:
+                    if "литера" in extra or "офис" in extra:
+                        address = address.rstrip(",") + ", " + extra
+                        break
+                break
+        if name:
+            data["Данные заказчика"] = name
+            if address:
+                data["Данные заказчика"] += "\n" + address
 
     inn_match = re.search(r"(ИНН получателя\s*\d+)", text)
     if inn_match:
