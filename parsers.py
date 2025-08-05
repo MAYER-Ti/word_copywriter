@@ -17,7 +17,14 @@ DEFAULT_DATA = {
     "Дата погрузки": "",
     "Дата разгрузки": "",
     "Стоимость перевозки": "",
+    "Цена": "",
 }
+
+
+def extract_price(cost: str) -> str:
+    """Extract numeric price from a cost string."""
+    match = re.search(r"\d[\d\s]*", cost or "")
+    return match.group(0).replace(" ", "") if match else ""
 
 
 def read_data_from_docx(path):
@@ -76,6 +83,7 @@ def read_data_from_docx(path):
             if ogrn_match:
                 data["ОГРН получателя"] = ogrn_match.group(0).strip()
 
+    data["Цена"] = extract_price(data["Стоимость перевозки"])
     return data
 
 
@@ -207,6 +215,7 @@ def parse_data_from_text(text: str):
     if ogrn_match:
         data["ОГРН получателя"] = ogrn_match.group(1).strip()
 
+    data["Цена"] = extract_price(data["Стоимость перевозки"])
     return data
 
 
