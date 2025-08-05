@@ -134,7 +134,7 @@ class MainWindow(QtWidgets.QMainWindow):
         if not (template_bytes and source_path):
             QMessageBox.warning(self, "Warning", "Please select source and templates")
             return
-         output_path, _ = QFileDialog.getSaveFileName(
+        output_path, _ = QFileDialog.getSaveFileName(
             self, "Save document", filter="Excel Files (*.xlsx)"
         )
         if not output_path:
