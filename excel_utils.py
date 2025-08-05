@@ -1,5 +1,6 @@
 from io import BytesIO
 from openpyxl import load_workbook, Workbook
+from openpyxl.utils.exceptions import InvalidFileException
 import xlrd
 import xlwt
 
@@ -26,7 +27,17 @@ def create_document(template_bytes, ext, data, output_path):
                 for c in range(sheet.ncols):
                     ws.cell(row=r + 1, column=c + 1, value=sheet.cell_value(r, c))
     else:
-        wb = load_workbook(BytesIO(template_bytes))
+        try:
+            wb = load_workbook(BytesIO(template_bytes))
+        except InvalidFileException:
+            book = xlrd.open_workbook(file_contents=template_bytes)
+            wb = Workbook()
+            wb.remove(wb.active)
+            for sheet in book.sheets():
+                ws = wb.create_sheet(title=sheet.name)
+                for r in range(sheet.nrows):
+                    for c in range(sheet.ncols):
+                        ws.cell(row=r + 1, column=c + 1, value=sheet.cell_value(r, c))
     replace_placeholders(wb, data)
     if output_path.lower().endswith(".xls"):
         out_wb = xlwt.Workbook()
