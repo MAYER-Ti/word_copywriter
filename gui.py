@@ -1,13 +1,11 @@
 from PyQt5 import QtWidgets
 from PyQt5.QtWidgets import QFileDialog, QMessageBox
 from PyQt5.QtCore import QSettings
-from io import BytesIO
 import os
 
-from openpyxl import load_workbook
-
 from parsers import read_data_from_file
-from doc_utils import format_preview, replace_placeholders
+from doc_utils import format_preview
+from excel_utils import create_document as generate_document
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -80,7 +78,10 @@ class MainWindow(QtWidgets.QMainWindow):
         if path and os.path.exists(path):
             try:
                 with open(path, "rb") as f:
-                    self.templates[key] = f.read()
+                    self.templates[key] = {
+                        "bytes": f.read(),
+                        "ext": os.path.splitext(path)[1].lower(),
+                    }
                 self.set_status(f"Шаблон {name} загружен")
             except Exception as e:
                 self.templates[key] = None
@@ -106,7 +107,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def browse_act_template(self):
         path, _ = QFileDialog.getOpenFileName(
-            self, "Select act template", filter="Excel Files (*.xls)"
+            self, "Select act template", filter="Excel Files (*.xls *.xlsx)"
         )
         if path:
             self.settings.setValue("act_template", path)
@@ -115,7 +116,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def browse_invoice_template(self):
         path, _ = QFileDialog.getOpenFileName(
-            self, "Select invoice template", filter="Excel Files (*.xls)"
+            self, "Select invoice template", filter="Excel Files (*.xls *.xlsx)"
         )
         if path:
             self.settings.setValue("invoice_template", path)
@@ -129,25 +130,29 @@ class MainWindow(QtWidgets.QMainWindow):
         self.create_document("invoice")
 
     def create_document(self, key):
-        template_bytes = self.templates.get(key)
+        template_info = self.templates.get(key)
         source_path = self.source_edit.text()
-        if not (template_bytes and source_path):
+        if not (template_info and source_path):
             QMessageBox.warning(self, "Warning", "Please select source and templates")
             return
-        output_path, _ = QFileDialog.getSaveFileName(
-            self, "Save document", filter="Excel Files (*.xlsx)"
+        output_path, selected_filter = QFileDialog.getSaveFileName(
+            self,
+            "Save document",
+            filter="Excel 97-2003 (*.xls);;Excel Workbook (*.xlsx)",
         )
         if not output_path:
             return
-        if not output_path.lower().endswith(".xlsx"):
-            output_path += ".xlsx"
-        data = getattr(self, "data", None)
-        if not data:
-            data = read_data_from_file(source_path)
+        if selected_filter.startswith("Excel 97-2003"):
+            if not output_path.lower().endswith(".xls"):
+                output_path += ".xls"
+        else:
+            if not output_path.lower().endswith(".xlsx"):
+                output_path += ".xlsx"
+        data = self.data or read_data_from_file(source_path)
         try:
-            wb = load_workbook(BytesIO(template_bytes))
-            replace_placeholders(wb, data)
-            wb.save(output_path)
+            generate_document(
+                template_info["bytes"], template_info["ext"], data, output_path
+            )
             QMessageBox.information(self, "Success", f"Document saved to {output_path}")
         except PermissionError:
             QMessageBox.critical(
