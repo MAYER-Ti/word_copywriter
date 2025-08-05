@@ -29,7 +29,9 @@ def replace_placeholders(wb, data):
                             if placeholder in new_value:
                                 new_value = new_value.replace(placeholder, value)
                         if new_value != cell_value:
-                            ws.write(r, c, new_value)
+                            style = xlwt.XFStyle()
+                            style.xf_idx = sheet.cell_xf_index(r, c)
+                            ws.write(r, c, new_value, style)
     else:
         raise TypeError("Unsupported workbook type")
 
