@@ -4,3 +4,5 @@ PyQt5>=5.15
 pdfplumber>=0.9
 pdf2image>=1.16
 pytesseract>=0.3
+xlrd>=2.0
+xlwt>=1.3
