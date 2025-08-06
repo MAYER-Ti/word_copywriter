@@ -76,12 +76,14 @@ class MainWindow(QtWidgets.QMainWindow):
         path = self.settings.value(f"{key}_template", "", type=str)
         name = "акта" if key == "act" else "счёта"
         if path and os.path.exists(path):
+            ext = os.path.splitext(path)[1].lower()
+            if ext != ".xlsx":
+                self.templates[key] = None
+                self.set_status(f"Неверный формат шаблона {name}")
+                return
             try:
                 with open(path, "rb") as f:
-                    self.templates[key] = {
-                        "bytes": f.read(),
-                        "ext": os.path.splitext(path)[1].lower(),
-                    }
+                    self.templates[key] = {"bytes": f.read(), "ext": ext}
                 self.set_status(f"Шаблон {name} загружен")
             except Exception as e:
                 self.templates[key] = None
@@ -107,7 +109,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def browse_act_template(self):
         path, _ = QFileDialog.getOpenFileName(
-            self, "Select act template", filter="Excel Files (*.xls *.xlsx)"
+            self, "Select act template", filter="Excel Files (*.xlsx)"
         )
         if path:
             self.settings.setValue("act_template", path)
@@ -116,7 +118,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def browse_invoice_template(self):
         path, _ = QFileDialog.getOpenFileName(
-            self, "Select invoice template", filter="Excel Files (*.xls *.xlsx)"
+            self, "Select invoice template", filter="Excel Files (*.xlsx)"
         )
         if path:
             self.settings.setValue("invoice_template", path)
@@ -135,19 +137,15 @@ class MainWindow(QtWidgets.QMainWindow):
         if not (template_info and source_path):
             QMessageBox.warning(self, "Warning", "Please select source and templates")
             return
-        output_path, selected_filter = QFileDialog.getSaveFileName(
+        output_path, _ = QFileDialog.getSaveFileName(
             self,
             "Save document",
-            filter="Excel 97-2003 (*.xls);;Excel Workbook (*.xlsx)",
+            filter="Excel Workbook (*.xlsx)",
         )
         if not output_path:
             return
-        if selected_filter.startswith("Excel 97-2003"):
-            if not output_path.lower().endswith(".xls"):
-                output_path += ".xls"
-        else:
-            if not output_path.lower().endswith(".xlsx"):
-                output_path += ".xlsx"
+        if not output_path.lower().endswith(".xlsx"):
+            output_path += ".xlsx"
         data = self.data or read_data_from_file(source_path)
         try:
             generate_document(

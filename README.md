@@ -15,6 +15,6 @@ python main.py
 2. Select the template document with placeholders like `{{Key}}`.
 3. After selecting source and template, press **Save** and choose where to store the resulting document.
 
-For Excel templates, use the `.xlsx` format. Legacy `.xls` templates are supported when `xlutils` is installed.
+For Excel templates, use the `.xlsx` format.
 
 The resulting document will be created with the placeholders replaced by the values from the source document.
