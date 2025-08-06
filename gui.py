@@ -1,4 +1,4 @@
-from PyQt5 import QtWidgets
+from PyQt5 import QtWidgets, QtGui
 from PyQt5.QtWidgets import QFileDialog, QMessageBox
 from PyQt5.QtCore import QSettings
 import os
@@ -15,6 +15,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.templates = {}
         self.data = {}
         self.status_label = QtWidgets.QLabel()
+        icon_path = os.path.join(os.path.dirname(__file__), "resources", "icon.png")
+        self.setWindowIcon(QtGui.QIcon(icon_path))
         self.init_ui()
         self.load_templates()
 
