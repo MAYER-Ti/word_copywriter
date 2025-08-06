@@ -29,9 +29,14 @@ class AboutWidget(QtWidgets.QWidget):
         text_label.setOpenExternalLinks(True)
 
         icon_path = os.path.join(os.path.dirname(__file__), "resources", "icon.png")
+        max_size = 128
+        pixmap = QtGui.QPixmap(icon_path).scaled(
+            max_size, max_size, Qt.KeepAspectRatio, Qt.SmoothTransformation
+        )
         image_label = QtWidgets.QLabel()
-        image_label.setPixmap(QtGui.QPixmap(icon_path))
+        image_label.setPixmap(pixmap)
         image_label.setAlignment(Qt.AlignCenter)
+        image_label.setFixedSize(pixmap.size())
 
         layout.addWidget(text_label, 1)
         layout.addWidget(image_label, 1)
