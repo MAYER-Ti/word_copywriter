@@ -1,11 +1,39 @@
 from PyQt5 import QtWidgets, QtGui
 from PyQt5.QtWidgets import QFileDialog, QMessageBox
-from PyQt5.QtCore import QSettings
+from PyQt5.QtCore import QSettings, Qt
 import os
 
 from parsers import read_data_from_file
 from doc_utils import format_preview
 from excel_utils import create_document as generate_document
+
+
+class AboutWidget(QtWidgets.QWidget):
+    """Simple widget showing information about the program."""
+
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("О программе")
+
+        layout = QtWidgets.QHBoxLayout()
+
+        text = (
+            "<h2>Word Copywriter</h2>"
+            "<p>Утилита для заполнения шаблонов на основе данных из документов.</p>"
+            "<p><a href='https://github.com'>Проект на GitHub</a></p>"
+        )
+        text_label = QtWidgets.QLabel(text)
+        text_label.setWordWrap(True)
+        text_label.setOpenExternalLinks(True)
+
+        icon_path = os.path.join(os.path.dirname(__file__), "resources", "icon.png")
+        image_label = QtWidgets.QLabel()
+        image_label.setPixmap(QtGui.QPixmap(icon_path))
+        image_label.setAlignment(Qt.AlignCenter)
+
+        layout.addWidget(text_label, 1)
+        layout.addWidget(image_label, 1)
+        self.setLayout(layout)
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -37,6 +65,17 @@ class MainWindow(QtWidgets.QMainWindow):
         toolbar.addWidget(settings_button)
         toolbar.addSeparator()
         toolbar.addWidget(self.status_label)
+
+        spacer = QtWidgets.QWidget()
+        spacer.setSizePolicy(
+            QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding
+        )
+        toolbar.addWidget(spacer)
+
+        about_button = QtWidgets.QToolButton()
+        about_button.setText("О нас")
+        about_button.clicked.connect(self.show_about)
+        toolbar.addWidget(about_button)
 
         # Central widget layout
         central = QtWidgets.QWidget()
@@ -169,3 +208,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.create_invoice_btn.setEnabled(
             source_selected and bool(self.templates.get("invoice"))
         )
+
+    def show_about(self):
+        self.about_widget = AboutWidget()
+        self.about_widget.show()
