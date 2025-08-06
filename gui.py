@@ -18,9 +18,11 @@ class AboutWidget(QtWidgets.QWidget):
         layout = QtWidgets.QHBoxLayout()
 
         text = (
-            "<h2>Word Copywriter</h2>"
+            "<h2>Copywriter</h2>"
             "<p>Утилита для заполнения шаблонов на основе данных из документов.</p>"
-            "<p><a href='https://github.com'>Проект на GitHub</a></p>"
+            "<p>Мы небольшой стартап, который специализируется на автоматизации производства</p>"
+            "<p>Больше о нас на <a href='https://project14096453.tilda.ws/'>сайте</a></p>"
+            "<p>Github разработчика <a href='https://github.com/MAYER-Ti'>здесь</a></p>"
         )
         text_label = QtWidgets.QLabel(text)
         text_label.setWordWrap(True)
