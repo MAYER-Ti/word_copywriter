@@ -147,7 +147,10 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def browse_source(self):
         path, _ = QFileDialog.getOpenFileName(
-            self, "Select source", filter="Documents (*.docx *.pdf)"
+            self,
+            "Select source",
+            filter="Documents (*.docx *.pdf)",
+            options=QFileDialog.DontUseNativeDialog,
         )
         if path:
             self.source_edit.setText(path)
@@ -157,7 +160,10 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def browse_act_template(self):
         path, _ = QFileDialog.getOpenFileName(
-            self, "Select act template", filter="Excel Files (*.xlsx)"
+            self,
+            "Select act template",
+            filter="Excel Files (*.xlsx)",
+            options=QFileDialog.DontUseNativeDialog,
         )
         if path:
             self.settings.setValue("act_template", path)
@@ -166,7 +172,10 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def browse_invoice_template(self):
         path, _ = QFileDialog.getOpenFileName(
-            self, "Select invoice template", filter="Excel Files (*.xlsx)"
+            self,
+            "Select invoice template",
+            filter="Excel Files (*.xlsx)",
+            options=QFileDialog.DontUseNativeDialog,
         )
         if path:
             self.settings.setValue("invoice_template", path)
@@ -189,6 +198,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self,
             "Save document",
             filter="Excel Workbook (*.xlsx)",
+            options=QFileDialog.DontUseNativeDialog,
         )
         if not output_path:
             return
