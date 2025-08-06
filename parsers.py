@@ -193,6 +193,11 @@ def parse_data_from_text(text: str):
                     if len(parts) >= 3:
                         name = "Индивидуальный предприниматель " + " ".join(parts[-3:])
             else:
+                for delim in ["Юридический адрес", "Почтовый адрес"]:
+                    pos = after.find(delim)
+                    if pos != -1:
+                        after = after[:pos].strip()
+                        break
                 name = "Индивидуальный предприниматель " + after
         for j, ln in enumerate(lines_cust):
             if ln.startswith("Юридический адрес"):
@@ -202,6 +207,10 @@ def parse_data_from_text(text: str):
                         address = address.rstrip(",") + ", " + extra
                         break
                 break
+        if not address:
+            addr_match = re.search(r"Юридический адрес[^\n]*(?=\n|Почтовый адрес|$)", block)
+            if addr_match:
+                address = addr_match.group(0).strip()
         if name:
             data["Данные заказчика"] = name
             if address:
