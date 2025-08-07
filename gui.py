@@ -90,11 +90,11 @@ class MainWindow(QtWidgets.QMainWindow):
         layout = QtWidgets.QVBoxLayout()
 
         source_layout = QtWidgets.QHBoxLayout()
-        source_layout.addWidget(QtWidgets.QLabel("Source"))
+        source_layout.addWidget(QtWidgets.QLabel("Документ"))
         self.source_edit = QtWidgets.QLineEdit()
         self.source_edit.setReadOnly(True)
         source_layout.addWidget(self.source_edit)
-        source_btn = QtWidgets.QPushButton("Browse")
+        source_btn = QtWidgets.QPushButton("Найти")
         source_btn.clicked.connect(self.browse_source)
         source_layout.addWidget(source_btn)
         layout.addLayout(source_layout)
@@ -150,7 +150,6 @@ class MainWindow(QtWidgets.QMainWindow):
             self,
             "Select source",
             filter="Documents (*.docx *.pdf)",
-            options=QFileDialog.DontUseNativeDialog,
         )
         if path:
             self.source_edit.setText(path)
@@ -163,7 +162,6 @@ class MainWindow(QtWidgets.QMainWindow):
             self,
             "Select act template",
             filter="Excel Files (*.xlsx)",
-            options=QFileDialog.DontUseNativeDialog,
         )
         if path:
             self.settings.setValue("act_template", path)
@@ -175,7 +173,6 @@ class MainWindow(QtWidgets.QMainWindow):
             self,
             "Select invoice template",
             filter="Excel Files (*.xlsx)",
-            options=QFileDialog.DontUseNativeDialog,
         )
         if path:
             self.settings.setValue("invoice_template", path)
@@ -198,7 +195,6 @@ class MainWindow(QtWidgets.QMainWindow):
             self,
             "Save document",
             filter="Excel Workbook (*.xlsx)",
-            options=QFileDialog.DontUseNativeDialog,
         )
         if not output_path:
             return
